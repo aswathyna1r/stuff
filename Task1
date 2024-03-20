@@ -1,1 +1,333 @@
+#run this in python3
+import RPi.GPIO as GPIO
+import time
+import cv2
+import sys
+from PIL import Image
+##wireless related
+def txtget():
+    i=0
+    global content
+    content=''
+    prevcon=''
+    while i<=2 :
+        try: 
+            f= open("data.txt")
+            content = f.read()
+            f.close()
+            if content == prevcon:
+                i=i
+                #print('no new msg')
+                time.sleep(0.5)
+            else: #got new message can leave
+                i+=1
+        except:
+            i-=10
+            print ("file open failure for %s time" %(str(i)))
+    #print('content:', content)  
+    prevcon=content
+def decoder():
+    trimmed = content[2:-1]
+    #print('trimmed:',trimmed)   
+    # Split the string into individual sensor readings based on semicolon
+    sensor_readings = trimmed.split(';')
+    # Initialize variables to store sensor data'
+    global x_axis, y_axis, z_axis, gyro_x, gyro_y, gyro_z, temp
+    global magnetometer_x, magnetometer_y, magnetometer_z
+    global dial_1, dial_2, flexs 
+    x_axis = y_axis = z_axis = gyro_x = gyro_y = gyro_z = temp = None
+    magnetometer_x = magnetometer_y = magnetometer_z = None
+    dial_1 = dial_2 = flexs = None
+    #print(sensor_readings)
+    # Loop through each sensor reading, split by colon, and assign values to variables
+    for reading in sensor_readings:
+        if reading:  # Check if the string is not empty
+            key, value = reading.split(': ')
+            if key == 'x_axis':
+                x_axis = float(value)
+            elif key == 'y_axis':
+                y_axis = float(value)
+            elif key == 'z_axis':
+                z_axis = float(value)
+            elif key == 'gyro_x':
+                gyro_x = float(value)
+            elif key == 'gyro_y':
+                gyro_y = float(value)
+            elif key == 'gyro_z':
+                gyro_z = float(value)
+            elif key == 'temp':
+                temp = float(value)
+            elif key == 'Magnetometer_x':
+                magnetometer_x = float(value)
+            elif key == 'Magnetometer_y':
+                magnetometer_y = float(value)
+            elif key == 'Magnetometer_z':
+                magnetometer_z = float(value)
+            elif key == 'Dial 1':
+                dial_1 = float(value)
+            elif key == 'Dial 2':
+                dial_2 = float(value)
+            elif key == 'flexs':
+                flexs = float(value)
+
+    # Print the variables to verify
+    #print(f"x_axis: {x_axis}, y_axis: {y_axis}, z_axis: {z_axis}, gyro_x: {gyro_x}, gyro_y: {gyro_y}, gyro_z: {gyro_z}, temp: {temp}")
+    #print(f"Magnetometer_x: {magnetometer_x}, Magnetometer_y: {magnetometer_y}, Magnetometer_z: {magnetometer_z}")
+    #print(f"Dial 1: {dial_1}, Dial 2: {dial_2}, flexs: {flexs}")
+    print("")
+
+# Set GPIO call mode as BCM
+GPIO.setmode(GPIO.BCM)
+
+# Define Ports
+ENA = 13
+ENB = 20
+IN1 = 19
+IN2 = 16
+IN3 = 21
+IN4 = 26
+servo1 = 12
+servo2 = 6
+servo3 = 5
+servo4 = 7
+
+# Initialize
+GPIO.setup(servo1, GPIO.OUT)
+GPIO.setup(servo2, GPIO.OUT)
+GPIO.setup(servo3, GPIO.OUT)
+GPIO.setup(servo4, GPIO.OUT)
+s1 = GPIO.PWM(servo1,50)
+s2 = GPIO.PWM(servo2,50)
+s3 = GPIO.PWM(servo3,50)
+s4 = GPIO.PWM(servo4,50)
+GPIO.setup(ENA, GPIO.OUT, initial=GPIO.LOW) #motor 1 is using ENA
+GPIO.setup(ENB, GPIO.OUT, initial=GPIO.LOW) #motor 2 is using ENB
+GPIO.setup(IN1, GPIO.OUT, initial=GPIO.LOW) #motor 1 positive supply
+GPIO.setup(IN2, GPIO.OUT, initial=GPIO.LOW) #motor 1 negative supply
+GPIO.setup(IN3, GPIO.OUT, initial=GPIO.LOW) #motor 2 positive supply
+GPIO.setup(IN4, GPIO.OUT, initial=GPIO.LOW) #motor 2 negative supply
+
+
+PWMA=GPIO.PWM(ENA,1000)
+PWMB=GPIO.PWM(ENB,1000)
+# Define all the required function for stop, forward, back ,right ,left
+def Stop():
+    GPIO.output(IN1, False)
+    GPIO.output(IN2, False)
+    GPIO.output(IN3, False)
+    GPIO.output(IN4, False)
+    GPIO.output(ENA, False)
+    GPIO.output(ENB, False)
+
+def Move_Forward():
+    GPIO.output(ENA, True)
+    GPIO.output(ENB, True)
+    GPIO.output(IN1, True)
+    GPIO.output(IN2, False)
+    GPIO.output(IN3, True)
+    GPIO.output(IN4, False)
+def Move_Back():
+    GPIO.output(ENA, True)
+    GPIO.output(ENB, True)
+    GPIO.output(IN1, False)
+    GPIO.output(IN2, True)
+    GPIO.output(IN3, False)
+    GPIO.output(IN4, True)
+def Move_Left():
+    GPIO.output(ENA, True)
+    GPIO.output(ENB, True)
+    GPIO.output(IN1, True)
+    GPIO.output(IN2, False)
+    GPIO.output(IN3, False)
+    GPIO.output(IN4, True)
+def Move_Right():
+    GPIO.output(ENA, True)
+    GPIO.output(ENB, True)
+    GPIO.output(IN1, False)
+    GPIO.output(IN2, True)
+    GPIO.output(IN3, True)
+    GPIO.output(IN4, False)
+def Robot_Arm():
+    servonumber = int(input('Select the servo number you want to move (1, 2, 3 or 4 or 5 for video capture and 6 for exit): '))
+    if servonumber == 1:
+        position = int(input('Select position between 1 and 12: '))
+        s1.ChangeDutyCycle(position)
+    elif servonumber == 2:
+        position = int(input('Select position between 1 and 12: '))
+        s2.ChangeDutyCycle(position)
+    elif servonumber == 3:
+        position = int(input('Select position between 1 and 12: '))
+        s3.ChangeDutyCycle(position)
+    elif servonumber == 4:
+        position = int(input('Select position between 1 and 12: '))
+        s4.ChangeDutyCycle(position)
+    elif servonumber == 5:
+        width = int(input('Give value for width in pixels: \n'))
+        height = int(input('Give value for height in pixels: \n'))
+        # Capture the default camera
+        cap = cv2.VideoCapture(0)
+
+        while True:
+            # Capture frame-by-frame
+            ret, frame = cap.read()
+
+            # EXTRA my self
+            if not ret:
+                print("Can't receive frame (stream end?). Exiting ...")
+                break
+
+            # Display the resulting frame
+            cv2.imshow('frame', frame)
+
+            # Wait for 'q' to break the loop
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                img=frame
+                image_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+                cv2.imshow('image_gray', image_gray)
+                image_resized = cv2.resize(image_gray, (width, height), None, None, cv2.INTER_LINEAR)
+                cv2.imshow('resized_image', image_resized)
+                clock = cv2.rotate(image_gray,  cv2.ROTATE_90_CLOCKWISE)
+                ##anticlock = cv2.rotate(image_resized, cv2.ROTATE_90_ANTICLOCKWISE)
+                cv2.imshow('clockwise', clock)
+                ##cv2.imshow('anticlockwise', anticlock)
+                break
+    elif servonumber == 6:
+        GPIO.cleanup()
+        raise SystemExit
+
+s1.start(0)
+s2.start(0)
+s3.start(0)
+s4.start(0)
+
+
+# Main loop
+if __name__ == "__main__":
+    #User_Input = input("Input a, b, c, d: \n")
+    #t1 = int(input('Input how long the robot should run for between 1-3: '))
+    Speed=20
+    #print('base speed is 50')
+    #Speed1 = int(input("change of speed: \n")) #Asks user for input on how much they want to change the speed
+    #Starts the PWM wave for both the motors
+    PWMA.start(0)
+    PWMB.start(0)
+    #Speed += Speed1
+    PWMA.ChangeDutyCycle(Speed)
+    PWMB.ChangeDutyCycle(Speed)
+    while True:
+        txtget()
+        decoder()
+        if x_axis < -5:
+            Move_Forward()
+        elif x_axis > 5:
+            Move_Back()
+        elif magnetometer_x >45:
+            Move_Left()
+        elif magnetometer_x <35:
+            Move_Right()
+        else:
+            Stop()
+        if y_axis < -5:
+            s3.ChangeDutyCycle(3)
+        elif y_axis > 5:
+            s3.ChangeDutyCycle(11)
+        else:
+            s3.ChangeDutyCycle(7) 
+        if flexs < 0.38:
+            s4.ChangeDutyCycle(4)
+        elif flexs > 0.38:
+            s4.ChangeDutyCycle(7)
+        if 0.6 < dial_1 < 1.1:
+            s1.ChangeDutyCycle(6)
+        elif dial_1 < 0.6:
+            s1.ChangeDutyCycle(4)
+        if 0.6 < dial_2 < 1.1:
+            s2.ChangeDutyCycle(7)
+        elif dial_2 < 0.6:
+            s2.ChangeDutyCycle(4)
+#     try:777777777777777777777777777777777777777777777777777777777777
+#         while True:
+#             if x_axis < -5:
+#                 Move_Forward()
+#                 time.sleep(t1)
+#             elif x_axis > 5:
+#                 Move_Back()
+#                 time.sleep(t1)
+        
+#         choice = int(input('You want to control just robot arm or the entire robot? (1 for robot and 2 will exit): '))
+#         if choice == 1:
+#             while True:  # Continuous loop
+#                 #Asks user for input of direction
+#                 User_Input = input("Input a, b, c, d: \n")
+#                 t1 = int(input('Input how long the robot should run for between 1-3: '))
+#                 Speed=50
+#                 print('base speed is 50')
+#                 Speed1 = int(input("change of speed: \n")) #Asks user for input on how much they want to change the speed
+#                 #Starts the PWM wave for both the motors
+#                 PWMA.start(0)
+#                 PWMB.start(0)
+#                 Speed += Speed1
+#                 PWMA.ChangeDutyCycle(Speed)
+#                 PWMB.ChangeDutyCycle(Speed)
+#                 if (User_Input == 'a'):  # If key 'a' is pressed
+#                     Move_Forward()
+#                     time.sleep(t1)
+#                     Stop()
+#                     while True:
+#                         Robot_Arm()
+#                 elif (User_Input == 'b'):  # If key 'b' is pressed
+#                     Move_Back()
+#                     time.sleep(t1)
+#                     Stop()
+#                     while True:
+#                         Robot_Arm()
+#                 elif (User_Input == 'c'):  # If key 'c' is pressed
+#                     Move_Left()
+#                     time.sleep(t1)
+#                     Move_Forward()
+#                     time.sleep(t1)
+#                     Stop()
+#                     while True:
+#                         Robot_Arm()
+#                 elif (User_Input == 'd'):  # If key 'd' is pressed
+#                     Move_Right()
+#                     time.sleep(t1)
+#                     Move_Back()
+#                     time.sleep(t1)
+#                     Stop()
+#                     while True:
+#                         Robot_Arm()
+#                 else:
+#                     Stop()
+#                     time.sleep(t1)  # Short delay to prevent high CPU usage
+#                     GPIO.cleanup()
+# 
+#                     
+#             
+#         elif choice == 2:
+#             while True:
+#                 servonumber = int(input('Select the servo number you want to move (1, 2, 3 or 4 or 5 for exiting): '))
+#                 if servonumber == 1:
+#                     position = int(input('Select position between 1 and 12: '))
+#                     s1.ChangeDutyCycle(position)
+#                 elif servonumber == 2:
+#                     position = int(input('Select position between 1 and 12: '))
+#                     s2.ChangeDutyCycle(position)
+#                 elif servonumber == 3:
+#                     position = int(input('Select position between 1 and 12: '))
+#                     s3.ChangeDutyCycle(position)
+#                 elif servonumber == 4:
+#                     position = int(input('Select position between 1 and 12: '))
+#                     s4.ChangeDutyCycle(position)
+#                 elif servonumber == 5:
+#                     s1.ChangeDutyCycle(2)
+#                     s2.ChangeDutyCycle(4)
+#                     s3.ChangeDutyCycle(3)
+#                     s4.ChangeDutyCycle(7)
+#                     GPIO.cleanup()
+#                     raise SystemExit
+# 
+#     except KeyboardInterrupt:
+#         # Cleanup GPIO settings before exiting
+#         GPIO.cleanup()
 
