@@ -1,0 +1,23 @@
+from machine import ADC, Pin
+import utime
+
+# Create ADC object on ADC pin (e.g., 26)
+adc = ADC(Pin(28))
+
+# Function to read the sensor and calculate the voltage
+def read_flex_sensor():
+    # Read the raw ADC value
+    raw_adc = adc.read_u16()
+    
+    # Convert the raw ADC value to voltage (0-3.3V for Pico)
+    # The ADC resolution for Pico is 16-bit (65535)
+    voltage = (raw_adc / 65535) * 3.3
+    
+    return voltage
+
+# Main loop
+while True:
+    flex_voltage = read_flex_sensor()
+    print("Flex Sensor Voltage:", flex_voltage)
+    utime.sleep(0.5)  # Pause for half a second
+
