@@ -1,0 +1,39 @@
+import network
+import time
+from machine import Pin
+from umqtt.simple import MQTTClient
+
+wlan = network.WLAN(network.STA_IF)
+wlan.active(True)
+wlan.connect("mokka","21800000")
+print("connecting")
+time.sleep(10)
+print(wlan.isconnected())
+
+sensor = Pin(16, Pin.IN)
+
+mqtt_server = 'broker.emqx.io'
+client_id = f'raspberry-pub-{time.time_ns()}'
+topic_pub = b'TomsHardware'
+topic_msg = b'asdfasfdafd'
+user = "emqx"
+password = "public"
+
+def mqtt_connect():
+    client = MQTTClient(client_id, mqtt_server, 1883, user, password)
+    client.connect()
+    print('Connected to %s MQTT Broker'%(mqtt_server))
+    return client
+
+def reconnect():
+    print('Failed to connect to the MQTT Broker. Reconnecting...')
+    time.sleep(5)
+    machine.reset()
+
+try:
+    client = mqtt_connect()
+except OSError as e:
+    reconnect()
+while True:
+    client.publish(topic_pub, topic_msg)
+    time.sleep(3)
