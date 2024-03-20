@@ -1,0 +1,11 @@
+from picozero import Pot # Pot is short for Potentiometer
+from time import sleep
+
+dial = Pot(0) # Connected to pin A0 (GP_26)
+dialb = Pot(1)
+flexs = Pot(2)
+while True:
+    print('Dial 1: ', dial.value)
+    print('Dial 2: ', dialb.value)
+    print('flexs: ', flexs.value)
+    sleep(0.1) # slow down the output
