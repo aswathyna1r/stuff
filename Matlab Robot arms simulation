@@ -1,0 +1,57 @@
+function simulate_robot_arm_grippers 
+L1 = 1; % Length of the first segment 
+L2 = 0.5; % Length of the second segment 
+objectPos = [1.2, 0.3]; % Position of the object 
+% animation 
+figure; 
+h = gca; 
+hold on; 
+grid on; 
+axis equal; 
+xlim([-1.5, 1.5]); 
+ylim([-1.5, 1.5]); 
+xlabel('X Position'); 
+ylabel('Y Position'); 
+title('Robot Arm with Grippers Picking Up Object'); 
+% Plot  
+plot(objectPos(1), objectPos(2), 's', 'MarkerSize',10, 'MarkerFaceColor','r'); 
+hPlot = plot(h, [0, 0], [0, 0], '-o', 'LineWidth', 2, 'MarkerFaceColor', 'b'); 
+hGripper = plot(h, [0, 0], [0, 0], 'k', 'LineWidth', 6); 
+% Initial gripper state (open) 
+gripperWidth = 0.1; 
+% object 
+for t = linspace(0, pi/2, 50) 
+ 
+theta1 = pi/4 * sin(t); %  45 degrees 
+theta2 = pi/4 * sin(t); %  45 degrees 
+% Calculate the joint positions 
+x1 = L1 * cos(theta1); 
+y1 = L1 * sin(theta1); 
+x2 = x1 + L2 * cos(theta1 + theta2); 
+y2 = y1 + L2 * sin(theta1 + theta2); 
+% arm plot 
+set(hPlot, 'XData', [0, x1, x2], 'YData', [0, y1, y2]); 
+% gripper plot 
+set(hGripper, 'XData', [x2, x2 + gripperWidth, x2, x2 - gripperWidth], 'YData', [y2, y2, y2 + gripperWidth, y2]); 
+drawnow; 
+pause(0.05); 
+end 
+% Close the grippers  
+for w = linspace(gripperWidth, 0, 10) 
+set(hGripper, 'XData', [x2, x2 + w, x2, x2 - w]); 
+drawnow; 
+pause(0.1); 
+end 
+% "Grab" the object  
+for lift = linspace(objectPos(2), 0.6, 20) 
+% Move the object up with the arm 
+y2 = lift + L2 * sin(theta1 + theta2); 
+objectPos(2) = lift;  
+set(hPlot, 'XData', [0, x1, x2], 'YData', [0, y1, y2]); 
+set(hGripper, 'XData', [x2, x2, x2, x2], 'YData', [y2, y2, y2 + 0.05, y2]); 
+ % grippers' position 
+plot(objectPos(1), objectPos(2), 's', 'MarkerSize',10, 'MarkerFaceColor','r'); 
+drawnow; 
+pause(0.05); 
+end 
+end 
